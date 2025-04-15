@@ -107,7 +107,7 @@ sudo docker-compose -f ~/cosmog/docker-compose.yml up -d" >> houndour/startup.sh
             - androidboot.redroid_gpu_mode=guest
             - androidboot.use_memfd=true
         container_name: redroid${i}
-        image: 'abing7k/redroid:a11_magisk_arm'
+        image: 'abing7k/redroid:a11_gapps_magisk_arm'
         restart: always" >> docker-compose.yml
 
         echo "{
