@@ -238,6 +238,56 @@ adb_unroot_device() {
     fi
 }
 
+# you need to manually certify by registering your device to a google account:
+# https://www.google.com/android/uncertified/
+# this function will grab the android_id needed for you, and wait for you to confirm "yes" you've registered
+setup_certification_script() {
+    for i in "${devices[@]}"; do
+        if adb_connect_device "$i"; then
+            if adb_root_device "$i"; then
+                # obtaining android_id from device
+                echo "[cert] obtaining android_id for certification from device $i:"
+                android_id=$(adb -s $i shell "su -c 'sqlite3 /data/data/com.google.android.gsf/databases/gservices.db \"select * from main where name = \\\"android_id\\\";\"'")
+
+                # check if we got a valid output or not
+                if [[ -z "$android_id" ]]; then
+                    echo "[cert] failed to retrieve android_id from device $i. Please check if the device is rooted properly."
+                    exit 1
+                else
+                    echo "[cert] android_id for device: $android_id"
+                fi
+
+                # request the user to certify the device and provide url
+                echo "[cert] please certify by registering your device:"
+                echo "https://www.google.com/android/uncertified/"
+                echo "Android_ID: \"$android_id\""
+
+                # loop to confirm with user registration has been completed
+                while true; do
+                    echo "have you completed the registration? (yes/no)"
+                    read user_input
+
+                    # Check user's response
+                    if [[ "$user_input" == "yes" ]]; then
+                        echo "[cert] registration confirmed for device $i with android_id: \"$android_id\"."
+                        break  # exit the loop if user confirms registration
+                    else
+                        echo "[cert] invalid input, please complete registration then type 'yes'"
+                        # the beatings will continue until morale improves
+                    fi
+                done
+            else
+                echo "[script] Skipping $i due to connection error."
+                exit 1
+            fi
+        else
+            echo "[script] Skipping $i due to connection error."
+            exit 1
+        fi
+    done
+    return 0
+}
+
 setup_push_script() {
     for i in "${devices[@]}";do
       if adb_connect_device "$i"; then
@@ -591,6 +641,7 @@ cosmog_lib_update() {
 # If no arguments are provided, run all functions
 if [ $# -eq 0 ]; then
     main() {
+        setup_certification_script || { log "[error] verifying certification status"; exit 1; }
         setup_push_script || { log "[error] transferring redroid setup script"; exit 1; }
         setup_permissions_script || { log "[error] granting redroid_device.sh chmod +x"; exit 1; }
         magisk_setup_settings || { log "[error] giving shell su perms"; exit 1; }
